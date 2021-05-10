@@ -17,7 +17,7 @@ path <- "C:/Users/viche/Desktop/vc/code/foru"
 pt6613 <- read.table(paste(path, "/GSE6613_phtype.tsv", sep=""))
 gt6613 <- read.table(paste(path, "/GSE6613_gtype.tsv", sep=""))
 gt7621 <- read.table(paste(path,"/GSE7621_gtype.tsv", sep=""))
-pt7621 <- read.table(paste(path,"path/GSE7621_phtype.tsv", sep=""))
+pt7621 <- read.table(paste(path,"/GSE7621_phtype.tsv", sep=""))
 pt8397_96 <- read.table(paste(path,"/GSE8397-96_phtype.tsv", sep=""))
 pt8397_97 <- read.table(paste(path,"/GSE8397-97_phtype.tsv", sep=""))
 gt8397_97 <- read.table(paste(path,"/GSE8397-97_gtype.tsv", sep=""))
@@ -135,7 +135,7 @@ ds <- ds[,1:21907]
 colnames(ds)[1] <- "group"
 
 ## drop neuro ctr
-nctr <- readLines("neuroctr.tsv")
+nctr <- readLines(paste(path, "/neuroctr.tsv", sep=""))
 ds2 <- ds[!rownames(ds) %in% nctr,]
 
 numds <- as.data.frame(apply(ds2[,-(1:2)], 2, as.numeric))
@@ -159,7 +159,7 @@ for(i in 2:dim(numdst)[2]){lines(density(norm_ds[,i]),lwd=3,col=colramp[i])}
 
 rmbds <- removeBatchEffect(norm_ds, ds2$code,
                            design=model.matrix(~0+group, data=ds2))
-
+#####################################################################################
 # row & col names
 fds <- data.frame(t(data.frame(rmbds)))
 rownames(fds) <- rownames(ds2)
