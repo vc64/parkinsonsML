@@ -1,5 +1,3 @@
-library("annotate")
-library("hgu133a.db")
 library(caret)
 library(pROC)
 library(e1071)
@@ -41,20 +39,6 @@ pt20292 <- read.table(paste(path,"/GSE20292_phtype.tsv", sep=""))
 pt26927 <- read.table(paste(path,"/GSE26927_phtype.tsv", sep=""))
 gt26927 <- read.table(paste(path,"/GSE26927_gtype.tsv", sep=""))
 
-## change for new gt - naming rows n cols
-# gt20164d <- data.frame(gt20164[2:22284,2:12])
-# rownames(gt20164d) <- gt20164$V1[2:22284]
-# colnames(gt20164d) <- as.character(gt20164[1,2:12])
-
-# mapping probe to gene
-# pr20164 <- as.character(rownames(gt20164d))
-# come back later to see which gene is good predictor
-# sb20164 <- select(hgu133a.db, pr20164, c("SYMBOL", "GENENAME"))
-
-#head(sort(-table(sb20164$PROBEID)))
-#gt20164d[rownames(gt20164d)=="AFFX-ThrX-3_at",]
-#sum(is.na(sb20164$SYMBOL))
-
 # merging data with hgu133A.db
 gt <- merge(gt20164, gt8397_96, by='V1')
 gt <- merge(gt, gt20292, by='V1')
@@ -66,8 +50,7 @@ gt <- merge(gt, gt20141, by = "V1")
 # shares 21942/22278 probes, will temporarily add for now
 gt <- merge(gt, gt7621, by = "V1")
 
-# clean up pt first
-# pt20164t <- t(pt20164)
+
 
 #add sample accession
 pt20164[nrow(pt20164)+1,] <- "GSE20164"
@@ -92,7 +75,6 @@ pt8397_96[1,1] <- "!Sample_characteristics_ch1"
 
 #6613 does not have any gender or age :(
 pt <- merge(pt20164[c(1,4, nrow(pt20164)),], pt8397_96[c(1, 2, nrow(pt8397_96)),], by='V1')
-# head(pt[1:5])
 pt <- merge(pt, pt20292[c(1, 2, nrow(pt20292)),], by='V1')
 pt <- merge(pt, pt20163[c(1, 4, nrow(pt20163)),], by='V1')
 pt <- merge(pt, pt6613[c(1, 2, nrow(pt6613)),], by='V1')
@@ -111,13 +93,9 @@ ptds <- data.frame(pt[c(1, 3), 2:288])
 rownames(ptds) <- pt$V1[c(1, 3)]
 colnames(ptds) <- as.character(pt[2, 2:288])
 
-#ptdc <- gsub("diagnosis: normal", replace = "ctr", ptds[1,])
-#simpleptd <- gsub("diagnosis: Parkinson's disease", replace = "pkd", ptdc)
-#simpleptd <- gsub("Superior frontal gyrus control case 2 - A chip", replace = "pkd", ptdc)
 
 simpleptd <- gsub(".*normal.*", replace = "ctr", ptds[1,])
 simpleptd <- gsub(".*Parkinson.*", replace = "pkd", simpleptd)
-# simpleptd <- gsub(".nuerological.*", replace = "nro", simpleptd)
 simpleptd <- gsub(".*control.*", replace = "ctr", simpleptd)
 simpleptd <- gsub(".*Control.*", replace = "ctr", simpleptd)
 
@@ -127,10 +105,7 @@ rownames(ptds3) <- ptds2[,1]
 
 ds <- cbind(ptds3, gtds)
 
-# write.table(ds, file = paste(path,"/normpkdata", quote = FALSE, sep = "/t")
 
-# nulls <- apply(ds, 2, function(r) any(r %in% c("null")))
-# which(nulls)
 ds <- ds[,1:21907]
 colnames(ds)[1] <- "group"
 
@@ -159,7 +134,7 @@ for(i in 2:dim(numdst)[2]){lines(density(norm_ds[,i]),lwd=3,col=colramp[i])}
 
 rmbds <- removeBatchEffect(norm_ds, ds2$code,
                            design=model.matrix(~0+group, data=ds2))
-#####################################################################################
+
 # row & col names
 fds <- data.frame(t(data.frame(rmbds)))
 rownames(fds) <- rownames(ds2)
@@ -171,17 +146,11 @@ findata <- cbind(grouplabels, fds)
 d <- dist(fds) # euclidean distances between the rows
 fit <- cmdscale(d,eig=TRUE, k=2) # k is the number of dim
 
-# plot solution 
-#x <- fit$points[,1]
-#y <- fit$points[,2]
-#plot(x, y, xlab="Coordinate 1", ylab="Coordinate 2", 
-     #main="Metric	MDS",	type="n")
-#text(x, y, labels = row.names(fds), cex=.7)
 
 
 # ggplot mds
 rmdsp <- data.frame(dim1=fit$points[,1],dim2=fit$points[,2],
-                   group=as.factor(ds2$group), study=ds2$code)
+                    group=as.factor(ds2$group), study=ds2$code)
 
 ggplot(data=rmdsp, aes(dim1, dim2, color = study, shape=group)) + 
     geom_point(size = 3) + 
@@ -191,127 +160,43 @@ ggplot(data=rmdsp, aes(dim1, dim2, color = study, shape=group)) +
 
 
 set.seed(333)
-pca <- prcomp(log2(findata[,-1:-2]+1))
+pca <- prcomp(log2(findata[,-1:-2]+2))
+#pca <- prcomp(log2(findata[,2:20725]+1))
 pcadata <- data.frame(group=findata$group, study = findata$code, pca$x)
-#indata <- createDataPartition(pcadata$group, 1, 0.7, list = FALSE)
-#test <- pcadata[-indata,]
-#indextv <- pcadata[indata,]
-#intrn <- createFolds(indextv$group, 6)
-#trainindex <- c(intrn$Fold1, intrn$Fold2, intrn$Fold3, intrn$Fold4, intrn$Fold5)
-#intrain <- indata[trainindex]
-#ftrn <- pcadata[intrain,]
 
-#invald <- indata[intrn$Fold6]
-#fvald <- pcadata[invald,]
 
 set.seed(333)
-#svmmodel <- svm(data.matrix(ftrn[,-1]), ftrn$group, type = "C-classification")
 
-#ctrl <- trainControl(method = "repeatedcv", repeats = 100)
-#mod <- train(group ~., data=ftrn, method = "svmLinear", trControl = ctrl)
-
-#svm_model <- svm(as.numeric(as.factor(group)) ~ ., data = ftrn)
-
-#sv <- svm(as.factor(group) ~ ., data = ftrn, type = "C-classification")
-
-#tuning <- tune(svm, as.numeric(as.factor(group)) ~., ftrn,
-               #kernel="radial", type = "C-classification",
-               #ranges=list(cost=10^(-1:2), gamma=c(.5,1,2)))
-
-#tuning <- tune(svm, as.numeric(as.factor(group)) ~., ftrn,
-               #ranges = list(gamma = 2^(-1:1), cost = 2^(2:4)),
-               #tunecontrol = tune.control(sampling = "fix"))
-               
-# tuning svm
-#tobj <- tune.svm(as.numeric(as.factor(group))~., data = ftrn, gamma = 2^(-1:1), cost = 2^(2:4))
-#tobj <- tune.svm(as.factor(group) ~., data = ftrn, kernel = "linear"
-                #, gamma = 2^(-1:1), cost = 2^(2:4))
-#tobj <- tune.svm(as.factor(group) ~., data = ftrn, kernel = "sigmoid"
-                 #, gamma = 2^(-1:1), cost = 2^(2:4))
-# training using svm func
-#svm <- svm(as.factor(group) ~ ., data = ftrn, kernel = "linear", type = "C-classification", 
-           #gamma = 0.5, cost = 4)
-#svm <- svm(as.factor(group) ~ ., data = ftrn, kernel = "sigmoid", type = "C-classification", 
-           #gamma = 2, cost = 4)
 
 # training using train(method = svm)
 set.seed(333)
 train_control <- trainControl(method="repeatedcv", number = 5, repeats = 10)
 
-#svm <- train(as.factor(group) ~ ., data = pcadata, kernel = "sigmoid",
-             #type = "C-classification", 
-             #gamma = 2, cost = 4, trControl = train_control,
-             #method = "svmLinear2")
 
 svm <- train(as.factor(group) ~ ., data = pcadata, trControl = train_control,
-                          method = "svmLinearWeights")
+             method = "svmLinearWeights")
 svm <- train(as.factor(group) ~ ., data = pcadata, trControl = train_control,
              method = "svmLinear2", tuneLength = 10)
 svmrad <- train(as.factor(group) ~ ., data = pcadata, trControl = train_control,
-             method = "svmRadial", tuneLength = 10)
+                method = "svmRadial", tuneLength = 10)
 
-#pred <- predict(svm, fvald)
-#table(pred, fvald$group)
-
-#fit <- vglm(group~., family=binomial, data=ftrn)
-
-#glmmod <- glmnet(data.matrix(ftrn[,-1]), 
-          #y= as.factor(ftrn$group), alpha=1, family="binomial")
-#lasso.pred <- predict(glmmod, s = bestlam, newx = x[test,])
-
-
-lambda <- 10^seq(10, -2, length = 100)
-cv.out <- cv.glmnet(data.matrix(ftrn[,-1]), as.numeric(as.factor(ftrn$group)),
-                    alpha = 0, family = "binomial", type.measure = "mse")
-minlam <- cv.out$lambda.min
-bestlam <- cv.out$lambda.1se
-
-x_vald <- model.matrix(as.numeric(as.factor(group)) ~., fvald)
-lassoprob <- predict(cv.out, newx = x_vald, s=bestlam, type = "response")
-
-lasso.mod <- glmnet(data.matrix(ftrn[,-1]), as.numeric(as.factor(ftrn$group)),
-                     alpha = 1, lambda = lambda)
-lassomod <- train(as.factor(group) ~ ., data = pcadata, 
-                  trControl = train_control, method = "lasso")
-
-lasso.pred <- predict(lasso.mod, s = bestlam, newx = data.matrix(fvald[,-1]))
-mean((lasso.pred-ytest)^2)
-
-set.seed(333)
-tr5 <- trainControl(method = "repeatedcv", number = 5, repeats = 5)
-naivemod <- train(as.factor(group) ~ ., data = pcadata, 
-                  trControl = tr5, method = "nb")
+# too many dependencies, not important
+#set.seed(333)
+#tr5 <- trainControl(method = "repeatedcv", number = 5, repeats = 5)
+#naivemod <- train(as.factor(group) ~ ., data = pcadata, 
+#                  trControl = tr5, method = "nb")
 
 
 ## nb
-train_control <- trainControl(method="repeatedcv", number=5, repeats=5)
+#train_control <- trainControl(method="repeatedcv", number=5, repeats=5)
 # train the model
-mnb <- train(as.factor(group)~., data=pcadata, trControl=train_control, method="nb")
+#mnb <- train(as.factor(group)~., data=pcadata, trControl=train_control, method="nb")
 # summarize results
-print(mnb)
-confusionMatrix(mnb)
+#print(mnb)
+#confusionMatrix(mnb)
 
 
-## rf
-# no tuning
-mrf1 <- train(as.factor(group) ~ ., data = pcadata, 
-                trControl = train_control, method = "rf")
-print(mrf1)
-confusionMatrix(mrf1)
-
-# tuning: grid search
-seed=333
-control <- trainControl(method="repeatedcv", number=5, repeats=10, search="grid")
-set.seed(seed)
-tunegrid1 <- expand.grid(.mtry=c(1:20))
-mrf2 <- train(as.factor(group)~., data=pcadata, method="rf",
-                       metric='Accuracy', tuneGrid=tunegrid1, trControl=control)
-print(mrf2)
-plot(mrf2)
-confusionMatrix(mrf2)
-
-
-## custom rf
+## custom rf (VERY slow)
 Sys.time()
 library("randomForest")
 customRF <- list(type = "Classification", library = "randomForest", loop = NULL)
@@ -338,66 +223,54 @@ summary(mrfc)
 plot(mrfc)
 
 
-
-
-
 treemd1 <- train(group ~ ., method = "rpart", data = pcadata,
                  trControl = control2)
 
 
-
-
 # neural network
-
-control3 <- trainControl(method="repeatedcv", number=5, repeats=3)
-mnet <- train(group ~ ., data = pcadata, trControl = control3, method = "dnn")
-
 set.seed(333)
-#control3 <- trainControl(method="repeatedcv", number=5, repeats=6)
 mnet <- train(group ~ ., data = pcadata, trControl = control2, 
-              method = "nnet", 
-              tuningGrid = data.frame(size=10, decay = -0.1))
+              method = "nnet", tuningLength = 1, MaxNWts = 1317)
 
-#mnetx <- train(group ~ ., data = pcadata, trControl = control2, 
-               #method = "mxnet")
-#generalized linear model
 
-mglm <- train(group ~ ., data = pcadata, trControl = control2, method = "glm")
-mglmnet <- train(group ~., data = pcadata, trControl = control2, method = "glmnet")
-#mglmnet <- train(group ~., data = pcadata, trControl = control2, method = "glmnet", tuningLength = 5)
-
-# knn
-mknn <- train(group ~ ., data = pcadata, trControl = control2, method = "knn")
-#mknn <- train(group ~ ., data = pcadata, trControl = control2, method = "knn", tuningLength = 10)
-#mknn <- train(group ~ ., data = pcadata, trControl = control2, method = "knn", 
-              #tuningGrid = data.frame(k = 100))
-
-#mkknn <- train(as.factor(group) ~., data = pcadata, trControl = control2, method = "kknn")
-
-#ldamod <- train(as.factor(group) ~ ., data = pcadata, )
 
 # boostedtrees
+set.seed(333)
 mtbst <- train(as.factor(group) ~., data = pcadata, 
                trControl = control2, method = "adaboost")
 
 
-# plot mnet
-require(RCurl)
+# model         accuracy
 
-root.url<-'https://gist.github.com/fawda123'
-raw.fun<-paste(
-    root.url,
-    '5086859/raw/17fd6d2adec4dbcf5ce750cbd1f3e0f4be9d8b19/nnet_plot_fun.r',
-    sep='/'
-)
-script<-getURL(raw.fun, ssl.verifypeer = FALSE)
-eval(parse(text = script))
-rm('script','raw.fun')
+# svm           0.569
+# svmRadial     0.573
+# naivebayes    dependency issues
+# randomForest  takes too long
+# nnet          0.793
+# boostedTrees  0.928??? overfitting?
 
 
+# adaboost output
 
-# roc
-roc_mnet <- roc(pcadata$group, mnet$pred)
-
-
-
+# > mtbst
+# AdaBoost Classification Trees 
+# 
+# 254 samples
+# 255 predictors
+# 2 classes: 'ctr', 'pkd' 
+# 
+# No pre-processing
+# Resampling: Cross-Validated (5 fold, repeated 10 times) 
+# Summary of sample sizes: 203, 203, 203, 204, 203, 203, ... 
+# Resampling results across tuning parameters:
+#     
+#     nIter  method         Accuracy   Kappa    
+# 50    Adaboost.M1    0.9043686  0.8032668
+# 50    Real adaboost  0.8772157  0.7457349
+# 100    Adaboost.M1    0.9236784  0.8437119
+# 100    Real adaboost  0.8850745  0.7614762
+# 150    Adaboost.M1    0.9280314  0.8525355
+# 150    Real adaboost  0.8933490  0.7787139
+# 
+# Accuracy was used to select the optimal model using the largest value.
+# The final values used for the model were nIter = 150 and method = Adaboost.M1.
